@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-import common
+from lib import common
 import logging
 import array
 import binascii
