@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import sys
-from lib import common
+#from lib import common
+from lib.nrf24 import *
 import logging
 import array
 import binascii
@@ -14,7 +15,7 @@ logging.basicConfig(level=10, format='[%(asctime)s.%(msecs)03d]  %(message)s', d
 
 logging.debug('Using channels {0}'.format(', '.join(str(c) for c in [channel])))
 
-radio = common.nrf24()
+radio = nrf24()
 radio.enable_lna()
 radio.set_channel(channel)
 radio.enter_sniffer_mode(address)
