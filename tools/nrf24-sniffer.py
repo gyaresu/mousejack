@@ -31,7 +31,7 @@ common.parse_and_init()
 # Parse the address
 address = common.args.address.replace(':', '').decode('hex')[::-1][:5]
 address_string = ':'.join('{:02X}'.format(ord(b)) for b in address[::-1])
-if len(address) < 2: 
+if len(address) < 2:
   raise Exception('Invalid address: {0}'.format(common.args.address))
 
 # Put the radio in sniffer mode (ESB w/o auto ACKs)
@@ -48,6 +48,7 @@ ping_payload = '\x0F\x0F\x0F\x0F'
 ack_timeout = int(common.args.ack_timeout / 250) - 1
 ack_timeout = max(0, min(ack_timeout, 15))
 retries = max(0, min(common.args.retries, 15))
+channels = 82
 
 # Sweep through the channels and decode ESB packets in pseudo-promiscuous mode
 last_ping = time.time()

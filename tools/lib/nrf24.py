@@ -102,7 +102,7 @@ class nrf24:
     if channel > 125: channel = 125
     self.send_usb_command(SET_CHANNEL, [channel])
     self.dongle.read(0x81, 64, timeout=nrf24.usb_timeout)
-    logging.debug('Tuned to {0}'.format(channel))
+    #logging.debug('Tuned to {0}'.format(channel))
 
   # Get the current RF channel
   def get_channel(self):
